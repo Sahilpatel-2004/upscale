@@ -1,49 +1,48 @@
-import os
-import uuid
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
-from PIL import Image
+from fastapi.staticfiles import StaticFiles
+import os
+import uuid
 import shutil
-
-# AI Upscaler
-from realesrgan import RealESRGAN
-import torch
+import cv2
 
 app = FastAPI()
 
-# Create folders
 UPLOAD_FOLDER = "uploads"
 OUTPUT_FOLDER = "outputs"
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
-# Load AI Model (once)
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = RealESRGAN(device, scale=4)
-model.load_weights('weights/RealESRGAN_x4.pth')
+# Serve images
+app.mount("/images", StaticFiles(directory=OUTPUT_FOLDER), name="images")
 
 @app.post("/upload/")
 async def upload_image(file: UploadFile = File(...)):
     try:
-        # Save uploaded file
         file_id = str(uuid.uuid4())
         input_path = f"{UPLOAD_FOLDER}/{file_id}.png"
         output_path = f"{OUTPUT_FOLDER}/{file_id}.png"
 
+        # Save file
         with open(input_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Open image
-        image = Image.open(input_path).convert("RGB")
+        # Read image
+        img = cv2.imread(input_path)
 
-        # Upscale image
-        sr_image = model.predict(image)
+        # Upscale (2x)
+        upscaled = cv2.resize(
+            img,
+            None,
+            fx=2,
+            fy=2,
+            interpolation=cv2.INTER_CUBIC
+        )
 
         # Save output
-        sr_image.save(output_path)
+        cv2.imwrite(output_path, upscaled)
 
-        # URL (Render will host static files)
         image_url = f"https://your-render-url.onrender.com/images/{file_id}.png"
 
         return JSONResponse({
