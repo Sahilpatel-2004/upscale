@@ -43,7 +43,7 @@ async def upload_image(file: UploadFile = File(...)):
         # Save output
         cv2.imwrite(output_path, upscaled)
 
-        image_url = f"https://your-render-url.onrender.com/images/{file_id}.png"
+        image_url = f"https://upscale-1-7tsq.onrender.com/images/{file_id}.png"
 
         return JSONResponse({
             "success": True,
